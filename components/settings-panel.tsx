@@ -24,7 +24,7 @@ import {
 import { AUDIO_OPTIONS, playAudio } from '@/lib/audio-utils'
 
 export function SettingsPanel() {
-  const { settings, updateSettings, state } = useTimer()
+  const { settings, updateSettings, state, isSettingsLoaded } = useTimer()
   const [isOpen, setIsOpen] = useState(false)
 
   const [focusDuration, setFocusDuration] = useState(
@@ -41,11 +41,14 @@ export function SettingsPanel() {
   )
 
   useEffect(() => {
-    setFocusDuration(settings.focusDuration.toString())
-    setShortBreakMinInterval(settings.shortBreakMinInterval.toString())
-    setShortBreakMaxInterval(settings.shortBreakMaxInterval.toString())
-    setLongBreakDuration(settings.longBreakDuration.toString())
-  }, [settings])
+    // 只在设置加载完成后更新本地状态
+    if (isSettingsLoaded) {
+      setFocusDuration(settings.focusDuration.toString())
+      setShortBreakMinInterval(settings.shortBreakMinInterval.toString())
+      setShortBreakMaxInterval(settings.shortBreakMaxInterval.toString())
+      setLongBreakDuration(settings.longBreakDuration.toString())
+    }
+  }, [settings, isSettingsLoaded])
 
   const togglePanel = () => {
     setIsOpen(!isOpen)

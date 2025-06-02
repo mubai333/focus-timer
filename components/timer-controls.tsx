@@ -54,18 +54,6 @@ export function TimerControls() {
           </div>
         )
 
-      case 'shortBreak':
-        return (
-          <Button
-            size="lg"
-            variant="outline"
-            disabled
-            className="gap-2 bg-blue-500/10 text-blue-500 border-blue-500/20"
-          >
-            Break Time (10s)
-          </Button>
-        )
-
       case 'focusComplete':
         return (
           <div className="flex flex-col sm:flex-row gap-2">

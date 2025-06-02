@@ -7,16 +7,26 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 export function TimerDisplay() {
-  const { state, timeRemaining, isRunning, settings } = useTimer()
+  const {
+    state,
+    timeRemaining,
+    isRunning,
+    settings,
+    showShortBreakHint,
+    isSettingsLoaded,
+  } = useTimer()
 
   const getStatusText = () => {
+    // Show short break hint if active
+    if (showShortBreakHint) {
+      return 'Take a 10s Break'
+    }
+
     switch (state) {
       case 'idle':
         return 'Ready to Focus'
       case 'focusing':
         return isRunning ? 'Focusing' : 'Focus Paused'
-      case 'shortBreak':
-        return 'Take a 10s Break'
       case 'longBreak':
         return isRunning ? 'Long Break' : 'Break Paused'
       case 'focusComplete':
@@ -29,11 +39,14 @@ export function TimerDisplay() {
   }
 
   const getStatusColor = () => {
+    // Show blue color for short break hint
+    if (showShortBreakHint) {
+      return 'text-blue-500'
+    }
+
     switch (state) {
       case 'focusing':
         return 'text-primary'
-      case 'shortBreak':
-        return 'text-blue-500'
       case 'longBreak':
         return 'text-emerald-500'
       case 'focusComplete':
@@ -42,6 +55,20 @@ export function TimerDisplay() {
       default:
         return 'text-muted-foreground'
     }
+  }
+
+  // 在设置加载完成之前显示默认状态，避免水合错误
+  if (!isSettingsLoaded) {
+    return (
+      <div className="flex flex-col items-center justify-center space-y-4 py-8">
+        <div className="text-6xl font-bold tracking-tighter md:text-8xl font-mono text-muted-foreground">
+          {formatTime(settings.focusDuration * 60)}
+        </div>
+        <div className="text-lg font-medium text-muted-foreground">
+          Ready to Focus
+        </div>
+      </div>
+    )
   }
 
   return (

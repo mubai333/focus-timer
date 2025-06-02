@@ -18,10 +18,10 @@ export function getRandomInterval(
 }
 
 export const DEFAULT_SETTINGS = {
-  focusDuration: 90, // in minutes
-  shortBreakMinInterval: 3, // in minutes
-  shortBreakMaxInterval: 5, // in minutes
-  longBreakDuration: 20, // in minutes
+  focusDuration: 60, // in minutes
+  shortBreakMinInterval: 5, // in minutes
+  shortBreakMaxInterval: 8, // in minutes
+  longBreakDuration: 10, // in minutes
   shortBreakSound: 'bell-soft',
   endSound: 'success-chime',
 }
@@ -31,7 +31,6 @@ export type TimerSettings = typeof DEFAULT_SETTINGS
 export type TimerState =
   | 'idle'
   | 'focusing'
-  | 'shortBreak'
   | 'longBreak'
   | 'focusComplete'
   | 'longBreakComplete'
@@ -41,6 +40,8 @@ export type TimerContextType = {
   timeRemaining: number
   settings: TimerSettings
   isRunning: boolean
+  showShortBreakHint: boolean
+  isSettingsLoaded: boolean
   updateSettings: (settings: Partial<TimerSettings>) => void
   startFocus: () => void
   startLongBreak: () => void

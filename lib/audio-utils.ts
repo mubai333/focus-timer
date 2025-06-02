@@ -54,9 +54,24 @@ export const playAudio = (soundKey: string, volume: number = 0.5) => {
   try {
     const audio = new Audio(audioPath)
     audio.volume = Math.max(0, Math.min(1, volume)) // 确保音量在0-1之间
-    audio.play().catch((error) => {
-      console.error('Failed to play audio:', error)
-    })
+
+    // 设置音频属性以确保后台播放
+    audio.preload = 'auto'
+
+    // 尝试播放音频，即使在后台
+    const playPromise = audio.play()
+
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          // 音频播放成功
+        })
+        .catch((error) => {
+          console.error('Failed to play audio:', error)
+          // 如果自动播放失败，可能是由于浏览器的自动播放策略
+          // 在实际应用中，用户交互后音频应该能正常播放
+        })
+    }
   } catch (error) {
     console.error('Error creating audio:', error)
   }

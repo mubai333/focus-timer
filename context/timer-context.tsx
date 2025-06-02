@@ -1,20 +1,13 @@
 'use client'
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useRef,
-} from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import {
   DEFAULT_SETTINGS,
   TimerContextType,
   TimerSettings,
-  TimerState,
-  getRandomInterval,
 } from '@/lib/timer-utils'
-import { playAudio, preloadAudio, AUDIO_FILE_MAP } from '@/lib/audio-utils'
+import { preloadAudio } from '@/lib/audio-utils'
+import { useTimerWorker } from '@/hooks/use-timer-worker'
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined)
 
@@ -55,22 +48,23 @@ const saveSettingsToStorage = (settings: TimerSettings) => {
 }
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<TimerState>('idle')
-  const [timeRemaining, setTimeRemaining] = useState(0)
-  const [settings, setSettings] = useState<TimerSettings>(() => {
-    // 在服务端渲染时使用默认设置，避免hydration不匹配
-    if (typeof window === 'undefined') {
-      return DEFAULT_SETTINGS
-    }
-    // 在客户端使用存储的设置
-    return loadSettingsFromStorage()
-  })
-  const [isRunning, setIsRunning] = useState(false)
+  const [settings, setSettings] = useState<TimerSettings>(DEFAULT_SETTINGS)
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false)
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const shortBreakTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const savedTimeRef = useRef<number>(0)
+  // 使用Web Worker Hook
+  const {
+    state,
+    timeRemaining,
+    isRunning,
+    showShortBreakHint,
+    startFocus: workerStartFocus,
+    startLongBreak: workerStartLongBreak,
+    pauseTimer,
+    resumeTimer,
+    resetTimer,
+    updateSettings: workerUpdateSettings,
+    isWorkerReady,
+  } = useTimerWorker(settings)
 
   // 在客户端挂载后加载设置
   useEffect(() => {
@@ -90,101 +84,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings.shortBreakSound, settings.endSound, isSettingsLoaded])
 
-  // Clean up timers on unmount
+  // 当设置更新时，同步到Worker
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (shortBreakTimerRef.current) clearTimeout(shortBreakTimerRef.current)
+    if (isWorkerReady) {
+      workerUpdateSettings(settings)
     }
-  }, [])
-
-  // Handle timer logic
-  useEffect(() => {
-    if (!isRunning) return
-
-    if (
-      state === 'focusing' ||
-      state === 'shortBreak' ||
-      state === 'longBreak'
-    ) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current!)
-
-            // Play end sound
-            playAudio(settings.endSound, 0.7)
-
-            // Update state based on which timer completed
-            if (state === 'focusing' || state === 'shortBreak') {
-              setState('focusComplete')
-            } else {
-              setState('longBreakComplete')
-            }
-
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [isRunning, state, settings.endSound])
-
-  // Schedule random short breaks during focus time
-  useEffect(() => {
-    if (state === 'focusing' && isRunning) {
-      scheduleNextShortBreak()
-    }
-
-    return () => {
-      if (shortBreakTimerRef.current) clearTimeout(shortBreakTimerRef.current)
-    }
-  }, [state, isRunning])
-
-  // Handle short break logic
-  useEffect(() => {
-    if (state === 'shortBreak' && isRunning) {
-      const shortBreakDuration = 10 // 10 seconds
-      // Don't change the displayed time, keep showing focus time
-
-      const shortBreakTimer = setTimeout(() => {
-        // Only return to focusing if we're still in shortBreak state
-        // (not if focus time has ended during the break)
-        setState((currentState) => {
-          if (currentState === 'shortBreak') {
-            return 'focusing'
-          }
-          return currentState
-        })
-      }, shortBreakDuration * 1000)
-
-      return () => {
-        clearTimeout(shortBreakTimer)
-      }
-    }
-  }, [state, isRunning])
-
-  const scheduleNextShortBreak = () => {
-    if (shortBreakTimerRef.current) clearTimeout(shortBreakTimerRef.current)
-
-    const interval = getRandomInterval(
-      settings.shortBreakMinInterval,
-      settings.shortBreakMaxInterval
-    )
-
-    shortBreakTimerRef.current = setTimeout(() => {
-      if (state === 'focusing' && isRunning) {
-        // Play short break sound
-        playAudio(settings.shortBreakSound, 0.6)
-
-        setState('shortBreak')
-      }
-    }, interval * 1000)
-  }
+  }, [settings, isWorkerReady, workerUpdateSettings])
 
   const updateSettings = (newSettings: Partial<TimerSettings>) => {
     setSettings((prev) => {
@@ -195,31 +100,11 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   }
 
   const startFocus = () => {
-    setTimeRemaining(settings.focusDuration * 60)
-    setState('focusing')
-    setIsRunning(true)
+    workerStartFocus(settings)
   }
 
   const startLongBreak = () => {
-    setTimeRemaining(settings.longBreakDuration * 60)
-    setState('longBreak')
-    setIsRunning(true)
-  }
-
-  const pauseTimer = () => {
-    setIsRunning(false)
-  }
-
-  const resumeTimer = () => {
-    setIsRunning(true)
-  }
-
-  const resetTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
-    if (shortBreakTimerRef.current) clearTimeout(shortBreakTimerRef.current)
-    setState('idle')
-    setTimeRemaining(0)
-    setIsRunning(false)
+    workerStartLongBreak(settings)
   }
 
   return (
@@ -229,6 +114,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         timeRemaining,
         settings,
         isRunning,
+        showShortBreakHint,
+        isSettingsLoaded,
         updateSettings,
         startFocus,
         startLongBreak,

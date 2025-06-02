@@ -10,7 +10,7 @@ import { Info } from 'lucide-react'
 export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-8 md:py-12">
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex gap-2">
         <Link href="/guide">
           <Button variant="ghost" size="icon">
             <Info className="h-[1.2rem] w-[1.2rem]" />
@@ -27,7 +27,6 @@ export default function Home() {
         </p>
 
         <TimerProvider>
-          {/* <DebugSettings /> */}
           <SettingsPanel />
 
           <div className="w-full bg-card rounded-lg shadow-lg p-6 md:p-8">
